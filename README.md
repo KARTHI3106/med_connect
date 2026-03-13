@@ -10,8 +10,6 @@ A full-stack healthcare platform that connects patients, doctors, and pharmacies
 - **Prescription management** — doctors create prescriptions, patients view them, pharmacies dispense
 - **QR verification** — dual QR scanning (patient ID + medicine) for pharmacy dispensing
 - **Blockchain audit trail** — prescriptions and dispense events recorded on Polygon Amoy
-- **AI assistant** — Google Gemini integration for prescription analysis and health Q&A
-- **Responsive UI** — glassmorphism design with Framer Motion animations
 
 ## Tech Stack
 
