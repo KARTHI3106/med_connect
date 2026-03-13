@@ -36,13 +36,29 @@ export function VitalChart({
   unit,
   color,
 }: Props): React.ReactElement {
-  const data = readings.map((r, i) => ({
-    index: i,
-    value: r[metric],
-    time: r.recorded_at
-      ? new Date(r.recorded_at).toLocaleTimeString()
-      : `#${i + 1}`,
-  }));
+  const formatTime = (iso?: string): string => {
+    if (!iso) return "--:--:--";
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return "--:--:--";
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(dt);
+  };
+
+  const data = [...readings]
+    .sort((a, b) => {
+      const aTime = a.recorded_at ? new Date(a.recorded_at).getTime() : 0;
+      const bTime = b.recorded_at ? new Date(b.recorded_at).getTime() : 0;
+      return aTime - bTime;
+    })
+    .map((r, i) => ({
+      index: i,
+      value: r[metric],
+      time: formatTime(r.recorded_at),
+    }));
 
   const baselineValue = baseline ? baseline[metricToBaselineKey[metric]] : null;
 

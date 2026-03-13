@@ -8,15 +8,30 @@ import type {
 
 let socket: Socket | null = null;
 
-const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.PROD ? window.location.origin : "http://localhost:3001");
+function deriveSocketUrl(): string {
+  const explicit = import.meta.env.VITE_SOCKET_URL;
+  if (explicit) {
+    return explicit;
+  }
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl && /^https?:\/\//i.test(apiUrl)) {
+    return apiUrl.replace(/\/api\/?$/, "");
+  }
+
+  return import.meta.env.PROD ? window.location.origin : "http://localhost:3001";
+}
+
+const SOCKET_URL = deriveSocketUrl();
 
 export function getSocket(): Socket {
   if (!socket) {
     socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       autoConnect: true,
+    });
+    socket.on("connect_error", (err) => {
+      console.error("[Socket] connect_error:", err.message);
     });
   }
   return socket;
