@@ -18,7 +18,7 @@ import { SimulatorPanel } from "@/components/shared/SimulatorPanel";
 import { joinPatientRoom, onVitalsUpdate, onNewAlert } from "@/services/socket";
 import { Input } from "@/components/shared/Input";
 import { Button } from "@/components/shared/Button";
-import { authApi } from "@/services/api";
+import api, { authApi } from "@/services/api";
 
 export function PatientMonitoringDashboard(): React.ReactElement {
   const { user, setUser } = useAuthStore();
@@ -49,10 +49,23 @@ export function PatientMonitoringDashboard(): React.ReactElement {
 
   useEffect(() => {
     if (!patientId) return;
+
+    const refreshHealthScore = async () => {
+      try {
+        const { data } = await api.get(`/patients/${patientId}`);
+        if (data.success && data.data?.health_score) {
+          setHealthScore(data.data.health_score);
+        }
+      } catch {
+        // Keep socket-driven state when polling fails.
+      }
+    };
+
     joinPatientRoom(patientId);
     fetchAlerts();
     fetchBaseline(patientId);
     fetchRecentReadings(patientId);
+    void refreshHealthScore();
 
     const unsub1 = onVitalsUpdate((data) => {
       addReading(data.reading);
@@ -60,8 +73,12 @@ export function PatientMonitoringDashboard(): React.ReactElement {
       setHealthScore(data.health_score);
     });
     const unsub2 = onNewAlert((alert) => addAlert(alert));
+    const healthScorePolling = setInterval(() => {
+      void refreshHealthScore();
+    }, 15000);
 
     return () => {
+      clearInterval(healthScorePolling);
       unsub1();
       unsub2();
     };

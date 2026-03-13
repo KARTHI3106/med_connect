@@ -82,7 +82,11 @@ class EmailNotificationService {
     const recipients = await this.resolveDoctorRecipients(input.patientId);
     const recipientEmails = recipients.map((r) => r.email);
     const uniqueRecipients = [
-      ...new Set([...recipientEmails, ...this.fallbackRecipients]),
+      ...new Set([
+        ...recipientEmails,
+        ...this.fallbackRecipients,
+        ...(patientContext.patientEmail ? [patientContext.patientEmail] : []),
+      ]),
     ];
 
     if (uniqueRecipients.length === 0) {

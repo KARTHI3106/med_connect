@@ -17,6 +17,29 @@ export class HealthScoreService {
     return Math.min(max, Math.max(min, value));
   }
 
+  private static mapScoreByRiskLevel(
+    normalizedRisk: number,
+    activityLevel: string,
+    riskLevel: RiskLevel,
+  ): number {
+    const activityBonus =
+      activityLevel === "walking" || activityLevel === "exercising" ? 3 : 0;
+
+    if (riskLevel === "CRITICAL") {
+      return this.clamp(74 - normalizedRisk * 0.65, 8, 39);
+    }
+
+    if (riskLevel === "HIGH") {
+      return this.clamp(86 - normalizedRisk * 0.9, 30, 69);
+    }
+
+    if (riskLevel === "MEDIUM") {
+      return this.clamp(92 - normalizedRisk * 0.9 + activityBonus, 55, 84);
+    }
+
+    return this.clamp(100 - normalizedRisk * 0.8 + 6 + activityBonus, 80, 100);
+  }
+
   static calculate(
     riskScore: number,
     activityLevel: string,
@@ -27,33 +50,13 @@ export class HealthScoreService {
     );
 
     const severityPenalty =
-      riskLevel === "CRITICAL"
-        ? 0
-        : riskLevel === "HIGH"
-          ? 8
-          : riskLevel === "MEDIUM"
-            ? 3
-            : 0;
+      riskLevel === "CRITICAL" ? 12 : riskLevel === "HIGH" ? 8 : 3;
 
-    const activityAdjustment =
-      riskLevel === "LOW" || riskLevel === "MEDIUM"
-        ? activityLevel === "walking" || activityLevel === "exercising"
-          ? 4
-          : 0
-        : 0;
-
-    const rawScore =
-      100 - normalizedRisk - severityPenalty + activityAdjustment;
-
-    // Keep severe states clearly reflected in the score to avoid misleading UI.
-    const cappedForSeverity =
-      riskLevel === "CRITICAL"
-        ? Math.min(rawScore, 39)
-        : riskLevel === "HIGH"
-          ? Math.min(rawScore, 69)
-          : rawScore;
-
-    const score = this.clamp(cappedForSeverity);
+    const score = this.mapScoreByRiskLevel(
+      normalizedRisk,
+      activityLevel,
+      riskLevel,
+    );
 
     const vitalsComponent = this.clamp(
       100 - normalizedRisk * 1.0 - severityPenalty * 0.3,
