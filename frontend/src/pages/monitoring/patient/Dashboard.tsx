@@ -100,17 +100,6 @@ export function PatientMonitoringDashboard(): React.ReactElement {
   useEffect(() => {
     if (!patientId) return;
 
-    const refreshHealthScore = async () => {
-      try {
-        const { data } = await api.get(`/patients/${patientId}`);
-        if (data.success && data.data?.health_score) {
-          setHealthScore(data.data.health_score);
-        }
-      } catch {
-        // Keep socket-driven state when polling fails.
-      }
-    };
-
     const refreshRisk = async () => {
       try {
         const { data } = await api.get(`/risk/${patientId}`);
@@ -126,7 +115,6 @@ export function PatientMonitoringDashboard(): React.ReactElement {
     fetchAlerts();
     fetchBaseline(patientId);
     fetchRecentReadings(patientId);
-    void refreshHealthScore();
     void refreshRisk();
 
     const unsub1 = onVitalsUpdate((data) => {
@@ -137,7 +125,6 @@ export function PatientMonitoringDashboard(): React.ReactElement {
     const unsub2 = onNewAlert((alert) => addAlert(alert));
     const monitoringPolling = setInterval(() => {
       void fetchRecentReadings(patientId);
-      void refreshHealthScore();
       void refreshRisk();
     }, 15000);
 
