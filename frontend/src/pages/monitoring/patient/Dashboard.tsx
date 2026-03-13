@@ -77,11 +77,23 @@ export function PatientMonitoringDashboard(): React.ReactElement {
       }
     };
 
+    const refreshRisk = async () => {
+      try {
+        const { data } = await api.get(`/risk/${patientId}`);
+        if (data.success && data.data) {
+          setRisk(data.data);
+        }
+      } catch {
+        // Keep existing risk state when polling fails.
+      }
+    };
+
     joinPatientRoom(patientId);
     fetchAlerts();
     fetchBaseline(patientId);
     fetchRecentReadings(patientId);
     void refreshHealthScore();
+    void refreshRisk();
 
     const unsub1 = onVitalsUpdate((data) => {
       addReading(data.reading);
@@ -92,6 +104,7 @@ export function PatientMonitoringDashboard(): React.ReactElement {
     const monitoringPolling = setInterval(() => {
       void fetchRecentReadings(patientId);
       void refreshHealthScore();
+      void refreshRisk();
     }, 15000);
 
     return () => {
@@ -112,10 +125,9 @@ export function PatientMonitoringDashboard(): React.ReactElement {
 
   const latest = readings.length > 0 ? readings[readings.length - 1] : null;
   const displayHealthScore =
-    healthScore?.score ??
     (currentRisk
       ? estimateHealthScoreFromRisk(currentRisk.risk_score, currentRisk.risk_level)
-      : 0);
+      : healthScore?.score) ?? 0;
 
   const handleSaveEmail = async () => {
     const trimmedEmail = email.trim();
