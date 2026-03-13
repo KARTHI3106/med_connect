@@ -36,6 +36,40 @@ function estimateHealthScoreFromRisk(riskScore: number, riskLevel: string): numb
   return Math.round(Math.max(80, Math.min(100, 100 - normalizedRisk * 0.8 + 6)));
 }
 
+function estimateRiskScoreFromReading(reading: {
+  heart_rate: number;
+  spo2: number;
+  systolic_bp: number;
+  diastolic_bp: number;
+  temperature: number;
+}): number {
+  let score = 0;
+
+  if (reading.heart_rate <= 40 || reading.heart_rate >= 150) score += 35;
+  else if (reading.heart_rate <= 50 || reading.heart_rate >= 120) score += 15;
+
+  if (reading.spo2 <= 88) score += 40;
+  else if (reading.spo2 <= 92) score += 20;
+
+  if (reading.systolic_bp <= 80 || reading.systolic_bp >= 180) score += 30;
+  else if (reading.systolic_bp <= 90 || reading.systolic_bp >= 140) score += 12;
+
+  if (reading.diastolic_bp >= 120) score += 25;
+  else if (reading.diastolic_bp <= 60 || reading.diastolic_bp >= 90) score += 10;
+
+  if (reading.temperature >= 39.5) score += 25;
+  else if (reading.temperature <= 35.5 || reading.temperature >= 38.0) score += 10;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreToRiskLevel(score: number): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
+  if (score >= 70) return "CRITICAL";
+  if (score >= 45) return "HIGH";
+  if (score >= 20) return "MEDIUM";
+  return "LOW";
+}
+
 export function PatientMonitoringDashboard(): React.ReactElement {
   const { user, setUser } = useAuthStore();
   const {
@@ -124,10 +158,30 @@ export function PatientMonitoringDashboard(): React.ReactElement {
   ]);
 
   const latest = readings.length > 0 ? readings[readings.length - 1] : null;
-  const displayHealthScore =
-    (currentRisk
+  const latestReadingTs = latest?.recorded_at
+    ? new Date(latest.recorded_at).getTime()
+    : 0;
+  const latestRiskTs = currentRisk?.assessed_at
+    ? new Date(currentRisk.assessed_at).getTime()
+    : 0;
+
+  const isRiskFreshForLatestReading =
+    latestReadingTs > 0 && latestRiskTs > 0
+      ? latestRiskTs >= latestReadingTs - 5000
+      : !!currentRisk;
+
+  const readingDerivedScore = latest
+    ? estimateHealthScoreFromRisk(
+        estimateRiskScoreFromReading(latest),
+        scoreToRiskLevel(estimateRiskScoreFromReading(latest)),
+      )
+    : null;
+
+  const displayHealthScore = isRiskFreshForLatestReading
+    ? currentRisk
       ? estimateHealthScoreFromRisk(currentRisk.risk_score, currentRisk.risk_level)
-      : healthScore?.score) ?? 0;
+      : (healthScore?.score ?? readingDerivedScore ?? 0)
+    : (readingDerivedScore ?? healthScore?.score ?? 0);
 
   const handleSaveEmail = async () => {
     const trimmedEmail = email.trim();

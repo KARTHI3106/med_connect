@@ -39,16 +39,17 @@ export function VitalChart({
   unit,
   color,
 }: Props): React.ReactElement {
-  const formatTime = (timestamp: number): string => {
-    if (!Number.isFinite(timestamp) || timestamp <= 0) return "--:--:--";
-    const dt = new Date(timestamp);
-    if (Number.isNaN(dt.getTime())) return "--:--:--";
-    return new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }).format(dt);
+  const formatRelativeTime = (timestamp: number, latestTimestamp: number): string => {
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return "--";
+    if (!Number.isFinite(latestTimestamp) || latestTimestamp <= 0) return "--";
+
+    const deltaSec = Math.max(0, Math.round((latestTimestamp - timestamp) / 1000));
+    if (deltaSec <= 1) return "now";
+    if (deltaSec < 60) return `${deltaSec}s ago`;
+
+    const minutes = Math.floor(deltaSec / 60);
+    const seconds = deltaSec % 60;
+    return `${minutes}m ${seconds}s ago`;
   };
 
   const sortedReadings = [...readings]
@@ -101,7 +102,9 @@ export function VitalChart({
               dataKey="ts"
               type="number"
               domain={["dataMin", "dataMax"]}
-              tickFormatter={(value) => formatTime(Number(value))}
+              tickFormatter={(value) =>
+                formatRelativeTime(Number(value), latestTimestamp)
+              }
               tickCount={6}
               minTickGap={24}
               tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
@@ -111,7 +114,14 @@ export function VitalChart({
               domain={["auto", "auto"]}
             />
             <Tooltip
-              labelFormatter={(label) => formatTime(Number(label))}
+              labelFormatter={(label) => {
+                const ts = Number(label);
+                const absolute = Number.isFinite(ts)
+                  ? new Date(ts).toLocaleTimeString()
+                  : "--";
+                const relative = formatRelativeTime(ts, latestTimestamp);
+                return `${absolute} (${relative})`;
+              }}
               contentStyle={{
                 backgroundColor: "rgba(17,24,39,0.95)",
                 border: "1px solid rgba(255,255,255,0.1)",
