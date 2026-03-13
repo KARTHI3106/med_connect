@@ -29,6 +29,7 @@ const metricToBaselineKey: Record<string, keyof Baseline> = {
 };
 
 const MAX_POINTS = 20;
+const RECENT_WINDOW_MS = 10 * 60 * 1000;
 
 export function VitalChart({
   readings,
@@ -38,9 +39,9 @@ export function VitalChart({
   unit,
   color,
 }: Props): React.ReactElement {
-  const formatTime = (iso?: string): string => {
-    if (!iso) return "--:--:--";
-    const dt = new Date(iso);
+  const formatTime = (timestamp: number): string => {
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return "--:--:--";
+    const dt = new Date(timestamp);
     if (Number.isNaN(dt.getTime())) return "--:--:--";
     return new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
@@ -50,17 +51,36 @@ export function VitalChart({
     }).format(dt);
   };
 
-  const data = [...readings]
+  const sortedReadings = [...readings]
     .sort((a, b) => {
       const aTime = a.recorded_at ? new Date(a.recorded_at).getTime() : 0;
       const bTime = b.recorded_at ? new Date(b.recorded_at).getTime() : 0;
       return aTime - bTime;
+    });
+
+  const latestTimestamp =
+    sortedReadings.length > 0
+      ? sortedReadings.reduce((latest, reading) => {
+          const ts = reading.recorded_at
+            ? new Date(reading.recorded_at).getTime()
+            : 0;
+          return ts > latest ? ts : latest;
+        }, 0)
+      : 0;
+
+  const data = sortedReadings
+    .filter((reading) => {
+      const ts = reading.recorded_at ? new Date(reading.recorded_at).getTime() : 0;
+      if (ts <= 0 || latestTimestamp <= 0) {
+        return true;
+      }
+      return ts >= latestTimestamp - RECENT_WINDOW_MS;
     })
     .slice(-MAX_POINTS)
     .map((r, i) => ({
       index: i,
       value: r[metric],
-      time: formatTime(r.recorded_at),
+      ts: r.recorded_at ? new Date(r.recorded_at).getTime() : i * 1000,
     }));
 
   const baselineValue = baseline ? baseline[metricToBaselineKey[metric]] : null;
@@ -78,9 +98,12 @@ export function VitalChart({
               stroke="rgba(255,255,255,0.05)"
             />
             <XAxis
-              dataKey="time"
-              interval={0}
-              minTickGap={14}
+              dataKey="ts"
+              type="number"
+              domain={["dataMin", "dataMax"]}
+              tickFormatter={(value) => formatTime(Number(value))}
+              tickCount={6}
+              minTickGap={24}
               tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
             />
             <YAxis
@@ -88,6 +111,7 @@ export function VitalChart({
               domain={["auto", "auto"]}
             />
             <Tooltip
+              labelFormatter={(label) => formatTime(Number(label))}
               contentStyle={{
                 backgroundColor: "rgba(17,24,39,0.95)",
                 border: "1px solid rgba(255,255,255,0.1)",

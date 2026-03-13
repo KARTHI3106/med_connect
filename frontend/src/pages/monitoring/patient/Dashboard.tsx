@@ -20,6 +20,22 @@ import { Input } from "@/components/shared/Input";
 import { Button } from "@/components/shared/Button";
 import api, { authApi } from "@/services/api";
 
+function estimateHealthScoreFromRisk(riskScore: number, riskLevel: string): number {
+  const normalizedRisk = Math.max(0, Math.min(100, Number.isFinite(riskScore) ? riskScore : 0));
+
+  if (riskLevel === "CRITICAL") {
+    return Math.round(Math.max(8, Math.min(39, 74 - normalizedRisk * 0.65)));
+  }
+  if (riskLevel === "HIGH") {
+    return Math.round(Math.max(30, Math.min(69, 86 - normalizedRisk * 0.9)));
+  }
+  if (riskLevel === "MEDIUM") {
+    return Math.round(Math.max(55, Math.min(84, 92 - normalizedRisk * 0.9)));
+  }
+
+  return Math.round(Math.max(80, Math.min(100, 100 - normalizedRisk * 0.8 + 6)));
+}
+
 export function PatientMonitoringDashboard(): React.ReactElement {
   const { user, setUser } = useAuthStore();
   const {
@@ -95,6 +111,11 @@ export function PatientMonitoringDashboard(): React.ReactElement {
   ]);
 
   const latest = readings.length > 0 ? readings[readings.length - 1] : null;
+  const displayHealthScore =
+    healthScore?.score ??
+    (currentRisk
+      ? estimateHealthScoreFromRisk(currentRisk.risk_score, currentRisk.risk_level)
+      : 0);
 
   const handleSaveEmail = async () => {
     const trimmedEmail = email.trim();
@@ -171,7 +192,7 @@ export function PatientMonitoringDashboard(): React.ReactElement {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <GlassCard className="lg:col-span-1 flex flex-col items-center justify-center py-6">
-          <HealthScoreRing score={healthScore?.score ?? 85} size="md" />
+          <HealthScoreRing score={displayHealthScore} size="md" />
           <p className="text-sm text-white/50 mt-2">Health Score</p>
         </GlassCard>
 
