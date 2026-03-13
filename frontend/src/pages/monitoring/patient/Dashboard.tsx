@@ -73,12 +73,13 @@ export function PatientMonitoringDashboard(): React.ReactElement {
       setHealthScore(data.health_score);
     });
     const unsub2 = onNewAlert((alert) => addAlert(alert));
-    const healthScorePolling = setInterval(() => {
+    const monitoringPolling = setInterval(() => {
+      void fetchRecentReadings(patientId);
       void refreshHealthScore();
     }, 15000);
 
     return () => {
-      clearInterval(healthScorePolling);
+      clearInterval(monitoringPolling);
       unsub1();
       unsub2();
     };

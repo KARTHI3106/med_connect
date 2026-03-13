@@ -7,6 +7,7 @@ import type {
 } from "@/types";
 
 let socket: Socket | null = null;
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 function deriveSocketUrl(): string {
   const explicit = import.meta.env.VITE_SOCKET_URL;
@@ -23,6 +24,24 @@ function deriveSocketUrl(): string {
 }
 
 const SOCKET_URL = deriveSocketUrl();
+
+async function postVitalsFallback(reading: VitalReading): Promise<void> {
+  try {
+    const { patient_id, ...readingPayload } = reading;
+    await fetch(`${API_BASE_URL}/vitals/batch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        patient_id,
+        readings: [readingPayload],
+      }),
+    });
+  } catch (error) {
+    console.error("[Vitals] HTTP fallback failed:", error);
+  }
+}
 
 export function getSocket(): Socket {
   if (!socket) {
@@ -50,7 +69,14 @@ export function joinCaregiverRoom(): void {
 }
 
 export function pushVitals(reading: VitalReading): void {
-  getSocket().emit("vitals:push", reading);
+  const s = getSocket();
+  if (s.connected) {
+    s.emit("vitals:push", reading);
+    return;
+  }
+
+  // Socket can reconnect later; send via API now to avoid dropped simulator cycles.
+  void postVitalsFallback(reading);
 }
 
 export interface VitalsUpdate {

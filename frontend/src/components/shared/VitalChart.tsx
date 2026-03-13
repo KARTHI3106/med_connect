@@ -28,6 +28,8 @@ const metricToBaselineKey: Record<string, keyof Baseline> = {
   temperature: "temperature",
 };
 
+const MAX_POINTS = 20;
+
 export function VitalChart({
   readings,
   baseline,
@@ -54,6 +56,7 @@ export function VitalChart({
       const bTime = b.recorded_at ? new Date(b.recorded_at).getTime() : 0;
       return aTime - bTime;
     })
+    .slice(-MAX_POINTS)
     .map((r, i) => ({
       index: i,
       value: r[metric],
@@ -76,6 +79,8 @@ export function VitalChart({
             />
             <XAxis
               dataKey="time"
+              interval={0}
+              minTickGap={14}
               tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
             />
             <YAxis
